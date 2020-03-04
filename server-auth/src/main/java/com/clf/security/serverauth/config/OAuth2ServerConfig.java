@@ -1,14 +1,18 @@
 package com.clf.security.serverauth.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
+
+import javax.sql.DataSource;
 
 /**
  * @Author: clf
@@ -22,30 +26,24 @@ public class OAuth2ServerConfig extends AuthorizationServerConfigurerAdapter {
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private DataSource dataSource;
+
+    @Bean
+    public TokenStore tokenStore() {
+        return new JdbcTokenStore(dataSource);
+    }
 
 
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-        endpoints.authenticationManager(authenticationManager);
+        endpoints
+                .tokenStore(tokenStore())
+                .authenticationManager(authenticationManager);
     }
 
     @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-        clients.inMemory()
-                .withClient("my-application") //允许访问的服务的名称
-                .secret(passwordEncoder.encode("123456"))
-                .scopes("read", "write") //权限的集合
-                .accessTokenValiditySeconds(3600)
-                .resourceIds("order-server") //允许访问的资源服务器的id
-                .authorizedGrantTypes("password")
-                .and()
-                .withClient("orderService") //允许访问的服务的名称
-                .secret(passwordEncoder.encode("123456"))
-                .scopes("read") //权限的集合
-                .accessTokenValiditySeconds(3600)
-                .resourceIds("order-server") //允许访问的资源服务器的id
-                .authorizedGrantTypes("password");
+        clients.jdbc(dataSource);
     }
 
     @Override
